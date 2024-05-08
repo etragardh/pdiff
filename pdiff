@@ -6,7 +6,7 @@ import argparse, os, subprocess, shutil
 # Arguments
 
 parser = argparse.ArgumentParser(
-    prog='Differ',
+    prog='Patch Differ',
     description='Utility to diffcheck 2 software versions - ie patch diffing',
     epilog="Dont hack shit without permission"
 )
