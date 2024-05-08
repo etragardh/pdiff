@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+
+import argparse, os, subprocess, shutil
+
+##
+# Arguments
+
+parser = argparse.ArgumentParser(
+    prog='Differ',
+    description='Utility to diffcheck 2 software versions - ie patch diffing',
+    epilog="Dont hack shit without permission"
+)
+parser.add_argument(
+    '--version',
+    action='store_true',
+    help='Display version'
+) 
+parser.add_argument(
+    'pos', nargs='*'
+)
+args = parser.parse_args()
+
+##
+# Version
+
+if args.version:
+    print("Version: 0.1")
+    exit()
+
+##
+# Conditions
+
+if len(args.pos) < 2:
+    print("Too few arguments")
+    exit()
+
+if not os.path.exists(args.pos[0]):
+    print("Original does not exists: ", args.pos[0])
+    exit()
+
+if not os.path.exists(args.pos[1]):
+    print("Patch does not exists: ", args.pos[1])
+    exit()
+
+if os.path.exists('tmp'):
+    #print("Path: ./diff already exists. Please remove it")
+    shutil.rmtree('tmp') # FIXME: Only for dev/debug
+    #exit()
+##
+# Diff check
+
+os.mkdir('tmp')
+os.chdir('tmp')
+os.system('git init >/dev/null 2>&1')
+
+os.system("cp -a ../" + args.pos[0] + "/* .")
+os.system("git add . >/dev/null 2>&1") #rm -rf is in tmp/
+os.system("git commit -m 'org' >/dev/null 2>&1") #rm -rf is in tmp/
+os.system("rm -rf *") #rm -rf is in tmp/
+
+os.system("cp -a ../" + args.pos[1] + "/* .")
+os.system("git add . >/dev/null 2>&1")
+os.system("git commit -m 'patch' >/dev/null 2>&1")
+
+commit1 = os.popen("git log | grep commit | cut -d ' ' -f 2 | sed '1p;d'").read()
+commit2 = os.popen("git log | grep commit | cut -d ' ' -f 2 | sed '2p;d'").read()
+
+#print("Diff:")
+#print("1:",commit1)
+#print("2:",commit2)
+files = os.popen("git diff --name-only " + commit2.rstrip() + " " + commit1.rstrip()).read()
+
+for file in files.split():
+    #print("File:",file)
+    src_fpath = "../" + args.pos[0] + "/" + file
+    dest_fpath = "../diff/" + file
+    if not os.path.exists(src_fpath):
+        # file was added, not modified
+        src_fpath = "../" + args.pos[1] + "/" + file
+        dest_fpath = "../diff/_a__" + file
+
+    os.makedirs(os.path.dirname(dest_fpath), exist_ok=True)
+    shutil.copy(src_fpath, dest_fpath)
+
+print("Diffed files saved to: diff/")
+print("Added files saved to: diff/_a__*")
+
+os.chdir('..')
+shutil.rmtree('tmp') # FIXME: Only for dev/debug
