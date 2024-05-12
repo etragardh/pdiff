@@ -8,7 +8,7 @@ import argparse, os, subprocess, shutil
 parser = argparse.ArgumentParser(
     prog='Patch Differ',
     description='Utility to diffcheck 2 software versions - ie patch diffing',
-    epilog="Dont hack shit without permission"
+    epilog="Dont hack shit without permission! =)"
 )
 parser.add_argument(
     '--version',
@@ -27,11 +27,16 @@ if args.version:
     print("Version: 0.1")
     exit()
 
+print()
+with open('assets/logo.ascii', 'r') as f:
+    print(f.read())
 ##
 # Conditions
 
-if len(args.pos) < 2:
-    print("Too few arguments")
+if len(args.pos) < 2:              
+    print("Usage:")
+    print("~# pdiff ~/path/to/org ~/path/to/patch")
+    print()
     exit()
 
 if not os.path.exists(args.pos[0]):
@@ -42,48 +47,76 @@ if not os.path.exists(args.pos[1]):
     print("Patch does not exists: ", args.pos[1])
     exit()
 
-if os.path.exists('tmp'):
+if os.path.exists('diff'):
     #print("Path: ./diff already exists. Please remove it")
-    shutil.rmtree('tmp') # FIXME: Only for dev/debug
+    shutil.rmtree('diff') # FIXME: Only for dev/debug
     #exit()
+
+# Constants
+original_path = os.path.abspath(args.pos[0])
+patch_path = os.path.abspath(args.pos[1])
+
 ##
 # Diff check
+#
+# Folders:
+# - diff/
+# | - mix/          (old ver of modified files + added)
+# | - patch/        (all new files, git repo 2 commits)
+#
+os.mkdir('diff')
+os.mkdir('diff/patch')
+os.chdir('diff/patch')
 
-os.mkdir('tmp')
-os.chdir('tmp')
+# Init patch repo
 os.system('git init >/dev/null 2>&1')
 
-os.system("cp -a ../" + args.pos[0] + "/* .")
-os.system("git add . >/dev/null 2>&1") #rm -rf is in tmp/
-os.system("git commit -m 'org' >/dev/null 2>&1") #rm -rf is in tmp/
-os.system("rm -rf *") #rm -rf is in tmp/
+# Copy all files from original ver to patch repo
+os.system("cp -a " + original_path + "/* .")
+os.system("git add . >/dev/null 2>&1")
+os.system("git commit -m 'original' >/dev/null 2>&1")
+# Remove them again
+os.system("rm -rf *")
 
-os.system("cp -a ../" + args.pos[1] + "/* .")
+# Add the patch version to patch repo
+os.system("cp -a " + patch_path + "/* .")
 os.system("git add . >/dev/null 2>&1")
 os.system("git commit -m 'patch' >/dev/null 2>&1")
 
+# Get the 2 commit IDS
 commit1 = os.popen("git log | grep commit | cut -d ' ' -f 2 | sed '1p;d'").read()
 commit2 = os.popen("git log | grep commit | cut -d ' ' -f 2 | sed '2p;d'").read()
 
-#print("Diff:")
-#print("1:",commit1)
-#print("2:",commit2)
+# Get the files that were modifed and/or added
 files = os.popen("git diff --name-only " + commit2.rstrip() + " " + commit1.rstrip()).read()
 
+total = 0
+added = 0
 for file in files.split():
+    total += 1
     #print("File:",file)
-    src_fpath = "../" + args.pos[0] + "/" + file
-    dest_fpath = "../diff/" + file
+    src_fpath = original_path + "/" + file
+    dest_fpath = "../mix/" + file
     if not os.path.exists(src_fpath):
+        added += 1
         # file was added, not modified
-        src_fpath = "../" + args.pos[1] + "/" + file
-        dest_fpath = "../diff/_a__" + file
+        src_fpath = patch_path + "/" + file
+        dest_fpath = "../mix/" + os.path.dirname(file) +"/__a_"+ os.path.basename(file)
 
     os.makedirs(os.path.dirname(dest_fpath), exist_ok=True)
     shutil.copy(src_fpath, dest_fpath)
 
-print("Diffed files saved to: diff/")
-print("Added files saved to: diff/_a__*")
-
-os.chdir('..')
-shutil.rmtree('tmp') # FIXME: Only for dev/debug
+print("------------------------------")
+print("- Total:", total)
+print("- Modified:", total-added)
+print("- Added:", added)
+print("------------------------------")
+print("- Modified and added saved to")
+print("- diff/mix/")
+print("-  -> modified files are stored in original version")
+print("-  -> added files are stored as __a_FILENAME.php")
+print("------------------------------")
+print("- Git repo of both versions")
+print("- diff/patch/")
+print("-  -> all files from patched is stored here")
+print("-  -> each version is its own git commit")

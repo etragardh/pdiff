@@ -11,23 +11,35 @@ chmod +x pdiff/pdiff
 sudo ln -s ${PWD}/pdiff/pdiff /usr/local/bin
 ```
 
-
 **Test it**
 ```
-pdiff path/to/version-1.0 path/to/version-1.1
+pdiff ~/path/to/version-1.0 ~/path/to/version-1.1
 ```
 
-`pdiff` will now create a new directory called `diff` in the working directory that contains only the modified and newly added files.<br />
+This will be created in your working directory:
+```
+diff/
+ - mix/
+ - patch/
+```
+
+The `diff/mix` directory contains a mix of modified and newly added files.<br />
+However the modified files are stored in their original state (so you can search them for vulnerabilities).<br />
+The newly added files are prefixed with `_a__` so you don't have to open them if not neccessary.
 <br />
-However the `diff` directory will contain the orignal versions of the files, not the modified.<br />
-<br >
-This is great if you want to search for vulnerabilities.
-<br />
-IE if you are looking for reflected XSS you might want to run something like this in the `diff` directory.<br />
+IE if you are looking for reflected XSS you might want to run something like this in the `diff/mix` directory.<br />
 ```
 ag -l "POST|GET|COOKIE" | xargs ag -l "echo|print" | xargs ag "POST|GET|COOKIE|echo|print"
 ```
 
-Newly added files are prefixed with `_a__`
 <br />
-FIXME: _a__ is also added to folder that holds new files
+<br />
+The `diff/patch` directory contains a local git repository with both versions as commits. This is great if you want to compare the changes side by side.<br />
+ie if you have VS Code you can run `code .` and select `timeline` at the bottom left to get them side by side.<br /><br />
+
+You can also run ordinary git commands in the directory. Such as:
+```
+git log
+or
+git diff --name-only commit-id-1 commit-id-2
+```
