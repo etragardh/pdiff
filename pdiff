@@ -13,6 +13,11 @@ parser = argparse.ArgumentParser(
     epilog="Dont hack shit without permission! =)"
 )
 parser.add_argument(
+    '-k', '--keep',
+    action='store_true',
+    help='Keep untouched files in diff/patch, default only keep modified and added'
+) 
+parser.add_argument(
     '--version',
     action='store_true',
     help='Display version'
@@ -95,6 +100,7 @@ commit2 = os.popen("git log | grep commit | cut -d ' ' -f 2 | sed '2p;d'").read(
 # Get the files that were modifed and/or added
 files = os.popen("git diff --name-only " + commit2.rstrip() + " " + commit1.rstrip()).read()
 
+# Create the mix directory
 total = 0
 added = 0
 for file in files.split():
@@ -110,6 +116,21 @@ for file in files.split():
 
     os.makedirs(os.path.dirname(dest_fpath), exist_ok=True)
     shutil.copy(src_fpath, dest_fpath)
+
+if not args.keep:
+    # Delete not modified nor newly added files from diff/patch
+    for root, dirs, files in os.walk("."):
+        if root.startswith('./.git'):
+            # Dont delete git files
+            continue
+        for filename in files:
+            # If file is not present in diff/mix, delete it
+            filepath = os.path.join(root, filename).strip('./')
+            print("file:",filepath)
+            if not os.path.exists('../mix/' + filepath) and not os.path.exists("../mix" + os.path.dirname(filepath) +"/__a_"+ os.path.basename(filepath)):
+               os.remove(filepath) 
+    #    for dirname in dirs:
+    #        print("dir:",os.path.join(root, dirname))
 
 print("------------------------------")
 print("- Total:", total)
