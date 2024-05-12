@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse, os, subprocess, shutil
+import sys
+
 
 ##
 # Arguments
@@ -20,6 +22,12 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
+realpath = os.path.dirname(os.path.realpath(__file__))
+
+print()
+with open(realpath + '/assets/logo.ascii', 'r') as f:
+    print(f.read())
+
 ##
 # Version
 
@@ -27,9 +35,6 @@ if args.version:
     print("Version: 0.1")
     exit()
 
-print()
-with open('assets/logo.ascii', 'r') as f:
-    print(f.read())
 ##
 # Conditions
 
