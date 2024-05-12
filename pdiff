@@ -128,8 +128,19 @@ if not args.keep:
             filepath = os.path.join(root, filename).strip('./')
             if not os.path.exists('../mix/' + filepath) and not os.path.exists("../mix" + os.path.dirname(filepath) +"/__a_"+ os.path.basename(filepath)):
                os.remove(filepath) 
+#               print('check if root is empty:', root.strip('./'))
+#               print('len:', len(os.listdir(root)))
+               if len(os.listdir(root)) == 0:
+#                   print("0 -> ", root)
+                   os.rmdir(root)
     #    for dirname in dirs:
     #        print("dir:",os.path.join(root, dirname))
+
+    # Delete empty folders
+#    walk = list(os.walk("."))
+#    for path, _, _ in walk[::-1]:
+#        if len(os.listdir(path)) == 0:
+#            os.remove(path.strip("./"))
 
 print("------------------------------")
 print("- Total:", total)
