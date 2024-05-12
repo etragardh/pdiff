@@ -126,7 +126,6 @@ if not args.keep:
         for filename in files:
             # If file is not present in diff/mix, delete it
             filepath = os.path.join(root, filename).strip('./')
-            print("file:",filepath)
             if not os.path.exists('../mix/' + filepath) and not os.path.exists("../mix" + os.path.dirname(filepath) +"/__a_"+ os.path.basename(filepath)):
                os.remove(filepath) 
     #    for dirname in dirs:
