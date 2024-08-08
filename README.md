@@ -63,3 +63,10 @@ cd diff/repo
 git log
 git diff --name-only commit-id-1 commit-id-2
 ```
+
+## Todo
+
++ Exclude CSS (option to keep)
++ Exclude JS (option to keep)
++ AI API (ask AI for dangerous practice)
++ AI API (ask AI for sample exploit)
