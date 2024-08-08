@@ -56,6 +56,7 @@ ag -l "POST|GET|COOKIE" | xargs ag -l "echo|print" | xargs ag "POST|GET|COOKIE|e
 ```
 
 **Git commands in repo/**
+
 You can also run ordinary git commands in the directory. Such as:
 ```
 cd diff/repo
