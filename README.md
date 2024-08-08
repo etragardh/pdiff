@@ -46,7 +46,7 @@ code .
 VS Code can show you the file difference, side by side and color coded.
 
 <br />
-+ If you are looking for reflected XSS you might want to run something like this in the `diff/original` directory.<br />
+If you are looking for reflected XSS you might want to run something like this in the `diff/original` directory.<br />
 ```
 ag -l "POST|GET|COOKIE" | xargs ag -l "echo|print" | xargs ag "POST|GET|COOKIE|echo|print"
 ```
