@@ -43,20 +43,22 @@ Output with kept files:
 cd diff/repo
 code .
 ```
-VS Code can show you the file difference, side by side and color coded.
+VS Code can show you the file difference, side by side and color coded.<br />
 
-If you are looking for reflected XSS you might want to run something like this in the `diff/original` directory.<br />
+The `diff/repo` directory contains a local git repository with both versions as commits. This is great if you want to compare the changes side by side.<br />
+
+**Search the original files**
+
+If you want to search for vulnerabilities it is convenient to search the modified files in their original state. ie if you are looking for reflected XSS you might want to run something like this in the `diff/original` directory.<br />
 
 ```
 ag -l "POST|GET|COOKIE" | xargs ag -l "echo|print" | xargs ag "POST|GET|COOKIE|echo|print"
 ```
 
-The `diff/repo` directory contains a local git repository with both versions as commits. This is great if you want to compare the changes side by side.<br />
-ie if you have VS Code you can run `code .` and select `timeline` at the bottom left to get them side by side.<br /><br />
-
+**Git commands in repo/**
 You can also run ordinary git commands in the directory. Such as:
 ```
+cd diff/repo
 git log
-or
 git diff --name-only commit-id-1 commit-id-2
 ```
