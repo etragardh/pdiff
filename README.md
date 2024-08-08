@@ -45,12 +45,11 @@ code .
 ```
 VS Code can show you the file difference, side by side and color coded.
 
-<br />
 If you are looking for reflected XSS you might want to run something like this in the `diff/original` directory.<br />
+
 ```
 ag -l "POST|GET|COOKIE" | xargs ag -l "echo|print" | xargs ag "POST|GET|COOKIE|echo|print"
 ```
-
 <br />
 The `diff/repo` directory contains a local git repository with both versions as commits. This is great if you want to compare the changes side by side.<br />
 ie if you have VS Code you can run `code .` and select `timeline` at the bottom left to get them side by side.<br /><br />
