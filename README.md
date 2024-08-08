@@ -31,9 +31,9 @@ pdiff ~/path/to/version-1.0 ~/path/to/version-1.1 --keep
 Output with kept files:
 ```
 - ./diff/
-| - original/			(modified files only, original state)
-| - patch/			(modified and added files, patched state)
-| - repo/			(modified and added files, git repo -> 2 states)
+| - original/		(modified files only, original state)
+| - patch/		(modified and added files, patched state)
+| - repo/		(modified and added files, git repo -> 2 states)
 ```
 
 ## Other
