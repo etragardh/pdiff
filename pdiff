@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse, os, subprocess, shutil
-import sys
+import sys, re
 
 
 ##
@@ -13,9 +13,15 @@ parser = argparse.ArgumentParser(
     epilog="Dont hack shit without permission! =)"
 )
 parser.add_argument(
+    '-f', '--force',
+    action='store_true',
+    help='Force delete diff/ directory if it exists'
+) 
+
+parser.add_argument(
     '-k', '--keep',
     action='store_true',
-    help='Keep untouched files in diff/patch, default only keep modified and added'
+    help='Keep newly added files. Default is to delete them.'
 ) 
 parser.add_argument(
     '--version',
@@ -37,7 +43,7 @@ with open(realpath + '/assets/logo.ascii', 'r') as f:
 # Version
 
 if args.version:
-    print("Version: 0.1")
+    print("Version: 1.0")
     exit()
 
 ##
@@ -58,9 +64,13 @@ if not os.path.exists(args.pos[1]):
     exit()
 
 if os.path.exists('diff'):
-    #print("Path: ./diff already exists. Please remove it")
-    shutil.rmtree('diff') # FIXME: Only for dev/debug
-    #exit()
+    if args.force:
+        shutil.rmtree('diff')
+    else:
+        print("Path: ./diff already exists. Please remove it")
+        print("Or run again with -f (--force)")
+        exit()
+
 
 # Constants
 original_path = os.path.abspath(args.pos[0])
@@ -71,14 +81,25 @@ patch_path = os.path.abspath(args.pos[1])
 #
 # Folders:
 # - diff/
+# | - original/     (modified files only, original state)
+# | - patch/        (modified files only, patched state)
+# | - repo/         (modified files only, git repo -> 2 states)
+
+# - old_layout/
 # | - mix/          (old ver of modified files + added)
 # | - patch/        (all new files, git repo 2 commits)
 #
-os.mkdir('diff')
-os.mkdir('diff/patch')
-os.chdir('diff/patch')
 
-# Init patch repo
+##
+# Create folders
+#
+os.mkdir('diff')
+os.mkdir('diff/original')
+os.mkdir('diff/patch')
+os.mkdir('diff/repo')
+
+# Init git repo
+os.chdir('diff/repo')
 os.system('git init >/dev/null 2>&1')
 
 # Copy all files from original ver to patch repo
@@ -93,66 +114,138 @@ os.system("cp -a " + patch_path + "/* .")
 os.system("git add . >/dev/null 2>&1")
 os.system("git commit -m 'patch' >/dev/null 2>&1")
 
-# Get the 2 commit IDS
+# Get the 2 commit ID:s
 commit1 = os.popen("git log | grep commit | cut -d ' ' -f 2 | sed '1p;d'").read()
 commit2 = os.popen("git log | grep commit | cut -d ' ' -f 2 | sed '2p;d'").read()
 
 # Get the files that were modifed and/or added
 files = os.popen("git diff --name-only " + commit2.rstrip() + " " + commit1.rstrip()).read()
 
-# Create the mix directory
+##
+# Create the original/ and patch/ directories
+#
+
+# Keep track of count
 total = 0
 added = 0
+removed = 0
+modified = 0
+
+# keep track of allowed files for later
+allowed = []
+
+# Iterate over "git diff" in ./diff/repo/
 for file in files.split():
     total += 1
     #print("File:",file)
-    src_fpath = original_path + "/" + file
-    dest_fpath = "../mix/" + file
-    if not os.path.exists(src_fpath):
-        added += 1
-        # file was added, not modified
-        src_fpath = patch_path + "/" + file
-        dest_fpath = "../mix/" + os.path.dirname(file) +"/__a_"+ os.path.basename(file)
+    osrc_fpath = original_path + "/" + file     # source code path
+    psrc_fpath = patch_path + "/" + file        # patched source path
+    odest_fpath = "../original/" + file         # original/ full path
+    pdest_fpath = "../patch/" + file            # patch/ full path
 
-    os.makedirs(os.path.dirname(dest_fpath), exist_ok=True)
-    shutil.copy(src_fpath, dest_fpath)
+    
+    # file was added, not modified
+    if not os.path.exists(osrc_fpath):
+        # Count it
+        added += 1
+        #print("Added:",file)
+
+        # Keep or discard?
+        if not args.keep:
+            # remove from ./diff/repo/
+            os.remove(file)
+            #print(" -> dont keep it")
+            dirname = os.path.dirname(file)
+            if dirname and not os.listdir(dirname):
+                #print("dir is empty:", dirname)
+                os.removedirs(dirname)
+        else:
+            # Let it stay in ./diff/repo/
+
+            # Copy the file from ~/src/v1.1/ -> ./diff/patch/
+            os.makedirs(os.path.dirname(pdest_fpath), exist_ok=True)
+            shutil.copy(psrc_fpath, pdest_fpath)
+            allowed.append(file)
+
+        # default is dont copy the added file to ./diff/original
+        # nor ./diff/patch
+        # since we dont have any vuln in this file.
+        continue
+
+    # File was removed -> only 1 copy
+    if not os.path.exists(psrc_fpath):
+        removed += 1
+        #print("Removed:", file)
+        #print(" -> we keep it in original/, it might have a vulnerability")
+
+        # Copy the file from ~/src/v1.0/ -> ./diff/original/
+        os.makedirs(os.path.dirname(odest_fpath), exist_ok=True)
+        shutil.copy(osrc_fpath, odest_fpath)
+        continue
+
+    # File was modified -> 2 copies
+    modified += 1
+    #print("Modified:", file)
+    #print(" -> keep it")
+
+    # Copy the file from ~/src/v1.0/ -> ./diff/original/
+    os.makedirs(os.path.dirname(odest_fpath), exist_ok=True)
+    shutil.copy(osrc_fpath, odest_fpath)
+    
+    # Copy the file from ~/src/v1.1/ -> ./diff/patch/
+    os.makedirs(os.path.dirname(pdest_fpath), exist_ok=True)
+    shutil.copy(psrc_fpath, pdest_fpath)
+
+    allowed.append(file)
+
+# walk through all files in ./diff/repo
+# and make sure only allowed files and folders are left there
+for (root,dirs,files) in os.walk('.',topdown=True):
+    if re.match(r'^\./\.git', root):
+        continue
+
+    # if dir is empty
+    if not os.listdir(root):
+        # recursive remove
+        os.removedirs(root)
+        continue
+
+    # for every file
+    for file in files:
+        path = root + '/' + file
+        path = path.lstrip('./')
+        #print('p:',path)
+
+        # if file is not allowed
+        if path not in allowed:
+            os.remove(path)
+            # if the file removed was the last file
+            if not os.listdir(root):
+                # recursive remove
+                os.removedirs(root)
+
+    #print("Directory path: %s"%root)
+    #print("Directory Names: %s"%dirs)
+    #print("Files Names: %s"%files)
+
+#print("allowed:")
+#print(allowed)
 
 if not args.keep:
-    # Delete not modified nor newly added files from diff/patch
-    for root, dirs, files in os.walk("."):
-        if root.startswith('./.git'):
-            # Dont delete git files
-            continue
-        for filename in files:
-            # If file is not present in diff/mix, delete it
-            filepath = os.path.join(root, filename).strip('./')
-            if not os.path.exists('../mix/' + filepath) and not os.path.exists("../mix" + os.path.dirname(filepath) +"/__a_"+ os.path.basename(filepath)):
-               os.remove(filepath) 
-#               print('check if root is empty:', root.strip('./'))
-#               print('len:', len(os.listdir(root)))
-               if len(os.listdir(root)) == 0:
-#                   print("0 -> ", root)
-                   os.rmdir(root)
-    #    for dirname in dirs:
-    #        print("dir:",os.path.join(root, dirname))
+    what_files = 'modified files only'
+    what_added = 'discarded'
+else:
+    what_files = 'modified and added files'
+    what_added = 'kept'
 
-    # Delete empty folders
-#    walk = list(os.walk("."))
-#    for path, _, _ in walk[::-1]:
-#        if len(os.listdir(path)) == 0:
-#            os.remove(path.strip("./"))
-
-print("------------------------------")
-print("- Total:", total)
-print("- Modified:", total-added)
-print("- Added:", added)
-print("------------------------------")
-print("- Modified and added saved to")
-print("- diff/mix/")
-print("-  -> modified files are stored in original version")
-print("-  -> added files are stored as __a_FILENAME.php")
-print("------------------------------")
-print("- Git repo of both versions")
-print("- diff/patch/")
-print("-  -> all files from patched is stored here")
-print("-  -> each version is its own git commit")
+print("#"*35)
+print("# Total:", total)
+print("# Modified:", modified)
+print("# Added:", added, f"\t({what_added})")
+print("# Removed:", removed, "\t(discarded)")
+print("#"*35)
+print("# - ./diff/")
+print(f"# | - original/\t\t(modified files only, original state)")
+print(f"# | - patch/\t\t({what_files}, patched state)")
+print(f"# | - repo/\t\t({what_files}, git repo -> 2 states)")
+print("#")
